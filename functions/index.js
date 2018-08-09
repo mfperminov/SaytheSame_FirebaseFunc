@@ -23,19 +23,23 @@ exports.setInQueue = functions.https.onCall((data, context) => {
           snapshot.forEach(function(childSnapshot) {
             rivalUid = childSnapshot.child("player_uid").val();
             var currentdate = new Date();
+            var pushkey;
             // for both players create nodes
-            // /users/:user1Uid/games/:user2Uid/:push1Id/{date, result}
-            // /users/:user2Uid/games/:user1Uid/:push2Id/{date, result}
+            // /users/:user1Uid/games/:user2Uid/:pushId/{date, result}
+            // /users/:user2Uid/games/:user1Uid/:pushId/{date, result}
             // TODO replace uid with result of game (math or unmatch)
             admin.database().ref('/users/' + rivalUid + "/games/" + playerUid)
               .push({
                 uid: playerUid,
                 date: currentdate.toString()
-              });
-            admin.database().ref('/users/' + playerUid + "/games/" + rivalUid)
-              .push({
-                uid: rivalUid,
-                date: currentdate.toString()
+              }).then((snap) => {
+                //save game to user2 with same pushId
+                pushKey = snap.key;
+                admin.database().ref('/users/' + playerUid + "/games/" + rivalUid
+                 + "/" + pushKey).set({
+                    uid: rivalUid,
+                    date: currentdate.toString()
+                  });
               });
             queueCount = queueCount - 1;
             admin.database().ref("/meta/queue_uid/" + childSnapshot.key).set(null);
