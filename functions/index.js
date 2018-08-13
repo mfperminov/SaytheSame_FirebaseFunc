@@ -28,29 +28,33 @@ exports.setInQueue = functions.https.onCall((data, context) => {
             // /users/:user1Uid/games/:user2Uid/:pushId/{date, result}
             // /users/:user2Uid/games/:user1Uid/:pushId/{date, result}
             // TODO replace uid with result of game (math or unmatch)
-            admin.database().ref('/users/' + rivalUid + "/games/" + playerUid)
+            admin.database().ref('/users/' + rivalUid + "/games")
               .push({
                 uid: playerUid,
                 date: currentdate.toString()
               }).then((snap) => {
                 //save game to user2 with same pushId
                 pushKey = snap.key;
-                admin.database().ref('/users/' + playerUid + "/games/" + rivalUid +
-                  "/" + pushKey).set({
+                admin.database().ref('/users/' + playerUid + "/games/" + pushKey)
+                .set({
                   uid: rivalUid,
                   date: currentdate.toString()
+                });
+                admin.database().ref('/games/'+pushKey).set({
+                  result: "in process",
+                  player1: playerUid,
+                  player2: rivalUid
                 });
               });
             //dequeue
             admin.database().ref("/meta/queue_count")
-            .transaction(function(current_value) {
-              return current_value - 1;
-            });
+              .transaction(function(current_value) {
+                return current_value - 1;
+              });
             admin.database().ref("/meta/queue_uid/" + childSnapshot.key)
-            .transaction(function(current_value) {
-              return null;
-            });
-            //admin.database().ref('/meta/queue_count').set(queueCount);
+              .transaction(function(current_value) {
+                return null;
+              });
           });
         });
     }
@@ -58,11 +62,20 @@ exports.setInQueue = functions.https.onCall((data, context) => {
   return playerUid;
 });
 
+exports.writeAGuess = functions.https.onCall((data, context) => {
+  const text = data.text;
+  const playerUid = data.playerUid;
+  const gameId = data.gameId;
+  const turnNumber = data.turnNumber;
+return  admin.database().ref("/games_data/"+gameId+"/"+turnNumber+"/"+playerUid)
+.set(text);
+});
+
 function writeToQueue(playerUid, count) {
   admin.database().ref("/meta/queue_count")
-  .transaction(function(current_value) {
-    return (current_value || 0) + 1;
-  });
+    .transaction(function(current_value) {
+      return (current_value || 0) + 1;
+    });
   admin.database().ref('/meta/queue_uid').push({
     player_uid: playerUid,
     count: count
