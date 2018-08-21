@@ -3,7 +3,7 @@ const admin = require('firebase-admin');
 admin.initializeApp();
 
 exports.setInQueue = functions.https.onCall((data, context) => {
-  // Grab the text parameter - player Uuid.
+  // Grab the text parameter - player Uid.
   const playerUid = data.text;
   var rival, queueCount;
   admin.database().ref('/meta/queue_count').once('value').then(snapshot => {
