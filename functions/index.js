@@ -13,7 +13,7 @@ exports.setInQueue = functions.https.onCall((data, context) => {
     // write playerUid in queue under path
     // ("/meta/queue_uid/:pushId/{count, player_uid}")
     if (queueCount == null || queueCount < 1) {
-      queueCount = 1;
+      queueCount++;
       writeToQueue(playerUid, queueCount);
     } else {
       //searching for last-in player in queue (his position -
@@ -36,11 +36,11 @@ exports.setInQueue = functions.https.onCall((data, context) => {
                 //save game to user2 with same pushId
                 pushKey = snap.key;
                 admin.database().ref('/users/' + playerUid + "/games/" + pushKey)
-                .set({
-                  uid: rivalUid,
-                  date: currentdate.toString()
-                });
-                admin.database().ref('/games/'+pushKey).set({
+                  .set({
+                    uid: rivalUid,
+                    date: currentdate.toString()
+                  });
+                admin.database().ref('/games/' + pushKey).set({
                   result: "in process",
                   player1: playerUid,
                   player2: rivalUid
@@ -62,13 +62,14 @@ exports.setInQueue = functions.https.onCall((data, context) => {
   return playerUid;
 });
 
+
 exports.writeAGuess = functions.https.onCall((data, context) => {
   const text = data.text;
   const playerUid = data.playerUid;
   const gameId = data.gameId;
   const turnNumber = data.turnNumber;
-return  admin.database().ref("/games_data/"+gameId+"/"+turnNumber+"/"+playerUid)
-.set(text);
+  return admin.database().ref("/games_data/" + gameId + "/" + turnNumber + "/" + playerUid)
+    .set(text);
 });
 
 function writeToQueue(playerUid, count) {
@@ -81,3 +82,34 @@ function writeToQueue(playerUid, count) {
     count: count
   });
 }
+
+exports.sendInviteToGame = functions.https.onCall((data, context) => {
+  const rivalUid = data.rivalUid;
+  const userUid = data.userUid;
+  var fcm_token;
+  //const getFollowerProfilePromise = admin.auth().getUser(rivalUid);
+
+  const getMessageTokensPromise = admin.database().ref("/users").child(rivalUid).child("fcm_token")
+    .once("value").then((snap) => {
+      fcm_token = snap.val();
+      const payload = {
+        notification: {
+          title: 'Enter the game',
+          body: `Somebody wants to challenge you.`
+        },
+        data: {
+      "rivalUid" : userUid
+        }
+      };
+      admin.messaging().sendToDevice(fcm_token, payload)
+        .then(function(response) {
+          console.log('Successfully sent message: ', response);
+        })
+        .catch(function(error) {
+          console.log('Error sending message: ', error);
+        });
+    });
+
+
+  return console.log("Function handling");
+});
